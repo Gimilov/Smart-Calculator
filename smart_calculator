@@ -1,0 +1,178 @@
+class SmartCalculator:
+    def __init__(self):
+        self.entry = ''
+        self.variables_dict = {}
+        self.precedence = {'^': 3, '*': 2, '/': 2, '+': 1, '-': 1}
+        self.all_operators_stack = ['^', '*', '/', '+', '-']
+        self.expression = []
+        self.operand_counter = 0
+        self.operators_stack = []
+        self.postfix = []
+        self.calculator_stack = []
+
+    def equation_to_list(self, entry_):
+        self.entry = entry_
+        self.expression = []  # resetting the expression (as it's gonna be in loop)
+        calculation = self.entry.replace(' ', '')
+        calculation = list(calculation)
+        number = ''  # to access the following loop
+        variable = ''  # same thing but for the variable
+        for n in range(len(calculation)):
+            if calculation[n].isdigit():
+                number = number + calculation[n]
+                if n == len(calculation) - 1:
+                    self.expression.append(number)
+                elif calculation[n + 1].isdigit() is False:
+                    self.expression.append(number)
+                    number = ''
+            elif calculation[n].isalpha():
+                variable = variable + calculation[n]
+                if n == len(calculation) - 1:
+                    self.expression.append(variable)
+                elif calculation[n + 1].isalpha() is False:
+                    self.expression.append(variable)
+                    variable = ''
+            elif calculation[n].isdigit() is False:
+                self.expression.append(calculation[n])
+
+    def multiple_pluses_minuses(self):
+        plus_minus = 0  # for any + it is +2 , for any - it is +1
+        corrected_expression = []
+        for n in range(len(self.expression)):
+            if self.expression[n] == '+':
+                plus_minus += 2
+                pass  # we omit the next plus
+            elif self.expression[n] == '-':
+                plus_minus += 1
+            else:
+                if plus_minus % 2 == 0 and plus_minus > 0:
+                    corrected_expression.append('+')
+                elif plus_minus % 2 == 1:
+                    corrected_expression.append('-')
+                plus_minus = 0
+                corrected_expression.append(self.expression[n])
+        self.expression = corrected_expression  # with reduced pluses and minuses
+
+    def validate_equation(self):
+        left_parenthesis_count = 0
+        right_parenthesis_count = 0
+        if self.expression.count('=') > 1:
+            print('Invalid assignment')
+        elif self.expression[0] == '*' or self.expression[0] == '^':
+            print('Invalid expression')
+        elif self.expression[-1] in self.all_operators_stack:
+            print('Invalid expression')
+        elif self.expression.count('(') != self.expression.count(')'):
+            print('Invalid expression')
+        else:
+            for x in range(len(self.expression)):
+                if self.expression[x].isalpha():
+                    pass
+                elif right_parenthesis_count > left_parenthesis_count:
+                    print('Invalid expression')
+                    break
+                elif self.expression[x] == '(':
+                    left_parenthesis_count += 1
+                elif self.expression[x] == ')':
+                    right_parenthesis_count += 1
+                elif self.expression[x] in self.all_operators_stack and self.expression[x + 1] in self.all_operators_stack:
+                    print('Invalid expression')
+                    break
+                if x == len(self.expression) - 1:  # meaning that the loop was not broken till the last element
+                    return 'expression is valid'
+
+    def var_assignment(self):
+        if self.expression.index('=') == 1 and self.expression[0].isalpha():
+            try:
+                self.variables_dict[self.expression[0]] = eval(' '.join(self.expression[2:]), self.variables_dict)
+            except NameError:
+                print('Unknown variable')
+            else:
+                self.variables_dict[self.expression[0]] = eval(' '.join(self.expression[2:]), self.variables_dict)
+        else:
+            print('Invalid assignment')
+
+    def infix_to_postfix(self):
+        self.operators_stack = []  # resetting if in loop!
+        self.postfix = []  # also resetting
+        for element in self.expression:
+            is_operator = element in self.all_operators_stack
+            if element.strip('-').isdigit() or element.isalpha():
+                # .isdigit() does not see negative numbers as digits
+                self.postfix.append(element)
+            elif is_operator and self.expression.index(element) == 0:
+                if element == '+':
+                    del self.expression[0]
+                    self.postfix.append(self.expression[0])
+                elif element == '-':
+                    self.expression[1] = self.expression[0] + self.expression[1]
+                    self.postfix.append(self.expression[1])
+                    del self.expression[0]
+            elif is_operator and (len(self.operators_stack) == 0 or self.operators_stack[-1] == '('):
+                self.operators_stack.append(element)
+            elif is_operator and self.precedence[element] > self.precedence[self.operators_stack[-1]]:
+                self.operators_stack.append(element)
+            elif is_operator and self.precedence[element] <= self.precedence[self.operators_stack[-1]]:
+                self.postfix.append(self.operators_stack.pop())
+                self.operators_stack.append(element)
+            elif element == '(':
+                self.operators_stack.append(element)
+            elif element == ')':
+                while self.operators_stack[-1] != '(':
+                    self.postfix.append(self.operators_stack.pop())
+                del self.operators_stack[-1]
+        while len(self.operators_stack) > 0:
+            self.postfix.append(self.operators_stack.pop())
+
+    def postfix_calculation(self):
+        self.calculator_stack = []  # to reset if in loop!
+        for element_ in self.postfix:
+            if element_.strip('-').isdigit() or element_.isalpha():
+                self.calculator_stack.append(element_)
+            elif element_ in self.all_operators_stack:
+                if element_ == '^':
+                    element_ = '**'  # to work fine with eval()
+                a = self.calculator_stack.pop()
+                b = self.calculator_stack.pop()
+                self.calculator_stack.append(eval(f'{b} {element_} {a} ', self.variables_dict))
+        try:
+            eval(str(self.calculator_stack[0]), self.variables_dict)  # only one element should be left
+        except NameError:
+            print('Unknown variable')
+        else:
+            result = eval(str(self.calculator_stack[0]), self.variables_dict)
+            print(round(result, 2))
+
+
+calculator = SmartCalculator()
+entry = ''  # to access the following loop
+while True:
+    entry = input().replace(' ', '')
+    if len(entry) == 0:
+        pass
+    elif entry.startswith('/'):
+        if entry == '/help':
+            print('''Welcome to the Smart Calculator!
+You can type "/exit" to leave the program or write the equation you want to be solved.
+Use the following operators:
+" ^ " to calculate the power
+" / " to divide
+" * " to multiply
+" + " to add
+" - " to subtract
+and parentheses. Have fun!''')
+        elif entry == '/exit':
+            print('Bye!')
+            break
+        else:
+            print('Unknown command')
+    else:
+        calculator.equation_to_list(entry)
+        calculator.multiple_pluses_minuses()
+        if entry.count('=') == 1:
+            calculator.var_assignment()
+        elif calculator.validate_equation() != 'expression is valid':
+            pass
+        else:
+            calculator.infix_to_postfix()
+            calculator.postfix_calculation()
